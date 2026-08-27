@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: school_mgmt
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Postgres' official image automatically runs any .sql files found
+      # in /docker-entrypoint-initdb.d/ the FIRST time the data volume is
+      # initialized (empty). This satisfies "Automatically seed postgres
+      # from seed_db/ on first run" with no extra scripting needed.
+      - ./seed_db/tables.sql:/docker-entrypoint-initdb.d/1-tables.sql:ro
+      - ./seed_db/seed-db.sql:/docker-entrypoint-initdb.d/2-seed-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 5007
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/school_mgmt
+      JWT_ACCESS_TOKEN_SECRET: dev_access_secret_change_me
+      JWT_REFRESH_TOKEN_SECRET: dev_refresh_secret_change_me
+      JWT_ACCESS_TOKEN_TIME_IN_MS: 900000
+      JWT_REFRESH_TOKEN_TIME_IN_MS: 28800000
+      CSRF_TOKEN_SECRET: dev_csrf_secret_change_me
+      CSRF_TOKEN_TIME_IN_MS: 950000
+      MAIL_FROM_USER: noreply@yourschool.com
+      RESEND_API_KEY: re_dev_key_placeholder
+      EMAIL_VERIFICATION_TOKEN_SECRET: dev_email_secret_change_me
+      EMAIL_VERIFICATION_TOKEN_TIME_IN_MS: 18000000
+      PASSWORD_SETUP_TOKEN_SECRET: dev_password_secret_change_me
+      PASSWORD_SETUP_TOKEN_TIME_IN_MS: 300000
+      UI_URL: http://localhost:5173
+      API_URL: http://localhost:5007
+      COOKIE_DOMAIN: localhost
+      NODE_ENV: development
+    ports:
+      - "5007:5007"
+
+  frontend:
+    build:
+      context: ./backend/frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://localhost:5007
+      VITE_APP_NAME: Education Management System
+      VITE_APP_VERSION: 1.0.0
+      NODE_ENV: development
+    ports:
+      - "5173:5173"
+
+  go-service:
+    build:
+      context: ./go-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      PORT: 8080
+      NODE_API_URL: http://backend:5007
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:
