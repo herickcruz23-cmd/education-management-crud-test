@@ -136,8 +136,15 @@ VALUES
 ('Get role detail', '/api/v1/roles/:id', NULL, 'access_setting_parent', NULL, 'api', 'GET'),
 ('Get role permissions', '/api/v1/roles/:id/permissions', NULL, 'access_setting_parent', NULL, 'api', 'GET'),
 ('Add role permissions', '/api/v1/roles/:id/permissions', NULL, 'access_setting_parent', NULL, 'api', 'POST'),
-('Get role users', '/api/v1/roles/:id/users', NULL, 'access_setting_parent', NULL, 'api', 'GET')
+('Get role users', '/api/v1/roles/:id/users', NULL, 'access_setting_parent', NULL, 'api', 'GET'),
 -- end access setting
+
+-- start certificates (blockchain certificate verification)
+('Certificates', 'certificates', 'certificates.svg', NULL, 8, 'menu-screen', NULL),
+-- end certificates
+
+-- delete student (added to complete student CRUD)
+('Delete student', '/api/v1/students/:id', NULL, 'students_parent', NULL, 'api', 'DELETE')
 ON CONFLICT DO NOTHING;
 
 ALTER SEQUENCE leave_status_id_seq RESTART WITH 1;
