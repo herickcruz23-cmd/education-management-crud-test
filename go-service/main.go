@@ -50,7 +50,7 @@ func getEnv(key, fallback string) string {
 // the Node API, per the challenge requirements.
 var nodeAPIBaseURL = getEnv("NODE_API_URL", "http://localhost:5007")
 
-func fetchStudent(id string, cookie string) (*Student, int, error) {
+func fetchStudent(id string, cookie string, csrfToken string) (*Student, int, error) {
 	url := fmt.Sprintf("%s/api/v1/students/%s", nodeAPIBaseURL, id)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -63,6 +63,15 @@ func fetchStudent(id string, cookie string) (*Student, int, error) {
 	// it would for a normal browser session.
 	if cookie != "" {
 		req.Header.Set("Cookie", cookie)
+	}
+
+	// The Node API applies csrfProtection to every method on /students,
+	// including GET (see backend/src/routes/v1.js), so a request with a
+	// valid session cookie but no CSRF token is still rejected with 400.
+	// Forward whatever the caller sent so this proxy behaves the same way
+	// the frontend SPA does when it calls the same endpoint.
+	if csrfToken != "" {
+		req.Header.Set("X-Csrf-Token", csrfToken)
 	}
 
 	client := &http.Client{}
@@ -189,7 +198,7 @@ func handleStudentReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	student, status, err := fetchStudent(id, r.Header.Get("Cookie"))
+	student, status, err := fetchStudent(id, r.Header.Get("Cookie"), r.Header.Get("X-Csrf-Token"))
 	if err != nil {
 		log.Printf("failed to fetch student %s: %v", id, err)
 		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), status)
